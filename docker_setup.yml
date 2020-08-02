@@ -1,0 +1,75 @@
+- hosts: dockerhost
+  vars:
+   - pname: "httpd"
+   - imagefile: "centos:7"
+  tasks:
+   - name: Add BaseOS
+     yum_repository:
+        name: dvd2
+        description: Local_baseos
+        baseurl: file:///dvd/BaseOS
+        gpgcheck: no
+
+   - name:  Add Application Stream
+     yum_repository:
+        name: dvd1
+        description: Local_appstream
+        baseurl: file:///dvd/AppStream
+        gpgcheck: no
+
+   - name: Install yum utils
+     yum:
+        name: yum-utils
+        state: latest
+
+   - name: Install python3
+     yum:
+        name: python3
+
+   - name:  Add Docker Repo
+     get_url:
+        url: https://download.docker.com/linux/centos/7/x86_64/stable/
+        dest: /etc/yum.repos.d/docker-ce.repo
+
+
+   - name: Install Docker
+     shell: "dnf install --nobest docker-ce -y"
+
+
+   - name: Start the Docker service
+     service:
+        name: docker
+        state: started
+        enabled: yes
+
+   - pip:
+        name: docker
+
+   - name: pull an image
+     docker_image:
+        name: "{{ imagefile }}"
+        source: pull
+
+   - name: Create Container
+     docker_container:
+        name: web-server
+        image: "{{ imagefile }}"
+        state: started
+        ports:
+        - "8080:80"
+        tty: true
+        detach: true
+
+   - name: Install Apache Server
+     yum:
+        name: "{{ pname }}"
+        state: present
+
+   - name: ensure httpd is running
+     service:
+        name: "{{ pname }}"
+        state: started
+
+   - copy:
+        content: "Docker Configuration Completed Successfully using Ansible"
+        dest: "/var/www/html/index.html"
